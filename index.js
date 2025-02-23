@@ -59,9 +59,10 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
     // Delete file from local temp storage
     fs.unlinkSync(req.file.path);
-
+    console.log(JSON.parse(userInfo))
+    user = JSON.parse(userInfo)
     // Save metadata in MongoDB
-    await db.collection(`${userInfo.nickname}posts`).insertOne({
+    await db.collection(`${user.nickname}posts`).insertOne({
       imageUrl: cloudinaryResponse.secure_url,
       description,
       userInfo: JSON.parse(userInfo),
