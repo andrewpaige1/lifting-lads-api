@@ -70,6 +70,38 @@ app.get("/search-users", async (req, res) => {
   }
 });
 
+// Save user to MongoDB
+app.post("/save-user", async (req, res) => {
+  try {
+    const { userInfo } = req.body;
+
+    if (!userInfo) {
+      return res.status(400).json({ error: "User info is required" });
+    }
+
+    // Parse userInfo if it's a string
+    const user = typeof userInfo === "string" ? JSON.parse(userInfo) : userInfo;
+
+    // Check if user already exists
+    const existingUser = await db.collection("users").findOne({ sub: user.sub });
+
+    if (existingUser) {
+      return res.status(200).json({ message: "User already exists", user: existingUser });
+    }
+
+    // Insert new user
+    const result = await db.collection("users").insertOne({
+      ...user,
+      createdAt: new Date(),
+    });
+
+    res.status(201).json({ message: "User saved successfully", user: result.ops[0] });
+  } catch (error) {
+    console.error("Error saving user:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 // **Upload Route using Cloudinary SDK**
 app.post("/upload", upload.single("image"), async (req, res) => {
@@ -87,7 +119,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 
     // Delete file from local temp storage
     fs.unlinkSync(req.file.path);
-    console.log(JSON.parse(userInfo))
+   // console.log(JSON.parse(userInfo))
     user = JSON.parse(userInfo)
     // Save metadata in MongoDB
     await db.collection(`${user.nickname}posts`).insertOne({
