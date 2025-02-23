@@ -141,6 +141,57 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   }
 });
 
+
+// Add a Lifting Lad request
+app.post("/add-lifting-lad", async (req, res) => {
+  try {
+    const { requesterName, requestedName, requesterPicture } = req.body;
+
+    const existingRequest = await db.collection(`${requestedName}liftingLadReqs`).findOne({
+      requesterName
+    });
+
+    if (existingRequest) {
+      return res.status(400).json({ error: "Lifting Lad request already exists" });
+    }
+
+    await db.collection(`${requestedName}liftingLadReqs`).insertOne({
+      requesterName,
+      requestedName,
+      requesterPicture,
+      status: "pending", // Can be "pending", "accepted", or "declined"
+      createdAt: new Date(),
+    });
+
+    res.status(201).json({ message: "Lifting Lad request sent successfully" });
+  } catch (error) {
+    console.error("Error adding Lifting Lad request:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Get Lifting Lad Requests for a User
+app.get("/lifting-lad-requests/:nickname", async (req, res) => {
+  try {
+    const { nickname } = req.params;
+
+    // Check if the user's lifting lad requests collection exists
+    const collectionName = `${nickname}liftingLadReqs`;
+    const liftingLadRequests = await db.collection(collectionName).find().toArray();
+
+    if (!liftingLadRequests.length) {
+      return res.status(404).json({ message: "No Lifting Lad requests found for this user." });
+    }
+
+    res.status(200).json({ requests: liftingLadRequests });
+  } catch (error) {
+    console.error("Error fetching Lifting Lad requests:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+
 // Video Upload Route using Cloudinary
 app.post("/upload-video", upload.single("video"), async (req, res) => {
   const { description, userInfo } = req.body;
