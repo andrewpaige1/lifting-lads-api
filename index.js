@@ -114,6 +114,29 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   }
 });
 
+
+// Search users by nickname
+app.get("/search-users", async (req, res) => {
+  try {
+      const { query } = req.query;
+      console.log(query)
+      if (!query) {
+          return res.status(400).json({ error: "Search query is required" });
+      }
+
+      // Case-insensitive search for nickname
+      const users = await db.collection("users").find({
+          nickname: { $regex: query, $options: "i" }
+      }).toArray();
+
+      res.status(200).json(users);
+  } catch (error) {
+      console.error("Error searching users:", error);
+      res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
 // Start server
 app.listen(port, "0.0.0.0", () => {
   console.log(`Server running on port ${port} and accessible from anywhere`);
