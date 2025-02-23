@@ -140,6 +140,41 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   }
 });
 
+// Get user data by ID
+app.get("/user/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    // Find the user by their ID
+    const user = await db.collection("users").findOne({ _id: new mongoose.Types.ObjectId(userId) });
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    // Fetch user's posts from their collection (assuming posts are stored separately)
+    const postsCollection = `${user.nickname}posts`;
+    const posts = await db.collection(postsCollection).find().toArray();
+
+    res.status(200).json({
+      _id: user._id,
+      nickname: user.nickname,
+      bio: user.bio || "",
+      posts: posts.map((post) => ({
+        id: post._id.toString(), // Convert ObjectId to string
+        type: post.type || "live", // Default to "live" if type is missing
+        content: post.description || "",
+        tags: post.tags || [],
+        imageUrl: post.imageUrl || "", // Include image if available
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching user data:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
 
 // Start server
 app.listen(port, "0.0.0.0", () => {
