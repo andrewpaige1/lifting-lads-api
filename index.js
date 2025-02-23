@@ -44,35 +44,29 @@ app.get("/", (req, res) => {
 });
 
 
-// Save user to MongoDB
-app.post("/save-user", async (req, res) => {
+// Search users by nickname
+app.get("/search-users", async (req, res) => {
   try {
-    const { userInfo } = req.body;
+      const { query } = req.query;
+      console.log(query)
 
-    if (!userInfo) {
-      return res.status(400).json({ error: "User info is required" });
-    }
+      const escapeRegex = (str) => str.replace(/[-\/\\^$*+?.()|[\]{}]/g, "\\$&");
+      const safeQuery = escapeRegex(String(query).trim());
+      // Case-insensitive search for nickname
+      const users = await db.collection("users").find().toArray();
+      const filteredUsers = []
 
-    // Parse userInfo if it's a string
-    const user = typeof userInfo === "string" ? JSON.parse(userInfo) : userInfo;
-
-    // Check if user already exists
-    const existingUser = await db.collection("users").findOne({ sub: user.sub });
-
-    if (existingUser) {
-      return res.status(200).json({ message: "User already exists", user: existingUser });
-    }
-
-    // Insert new user
-    const result = await db.collection("users").insertOne({
-      ...user,
-      createdAt: new Date(),
-    });
-
-    res.status(201).json({ message: "User saved successfully", user: result.ops[0] });
+      for (let user of users) {
+        console.log(user.nickname);
+        if (user.nickname && user.nickname.toLowerCase().includes(query.toLowerCase())) {
+          filteredUsers.push(user);
+        }
+      }
+      
+      res.status(200).json(filteredUsers);
   } catch (error) {
-    console.error("Error saving user:", error);
-    res.status(500).json({ error: "Internal Server Error" });
+      console.error("Error searching users:", error);
+      res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
@@ -111,28 +105,6 @@ app.post("/upload", upload.single("image"), async (req, res) => {
   } catch (error) {
     console.error("Error processing request:", error);
     res.status(500).json({ error: "Internal Server Error" });
-  }
-});
-
-
-// Search users by nickname
-app.get("/search-users", async (req, res) => {
-  try {
-      const { query } = req.query;
-      console.log(query)
-      if (!query) {
-          return res.status(400).json({ error: "Search query is required" });
-      }
-
-      // Case-insensitive search for nickname
-      const users = await db.collection("users").find({
-          nickname: { $regex: query, $options: "i" }
-      }).toArray();
-
-      res.status(200).json(users);
-  } catch (error) {
-      console.error("Error searching users:", error);
-      res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
