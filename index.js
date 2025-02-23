@@ -142,10 +142,112 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 });
 
 
+// Accept Lifting Lad Request
+app.post("/accept-lifting-lad", async (req, res) => {
+  try {
+    const { requesterName, requestedName, requesterPicture, friendType } = req.body;
+
+    const requestCollection = `${requestedName}liftingLadReqs`;
+    const friendsCollection = `${requestedName}Friends`;
+
+    // Check if request exists
+    const existingRequest = await db.collection(requestCollection).findOne({ requesterName });
+
+    if (!existingRequest) {
+      return res.status(404).json({ error: "Lifting Lad request not found" });
+    }
+
+    // Move to friends list
+    await db.collection(friendsCollection).insertOne({
+      requesterName,
+      requesterPicture,
+      friendType,
+      addedAt: new Date(),
+    });
+
+    // Remove request from request collection
+    await db.collection(requestCollection).deleteOne({ requesterName });
+
+    res.status(200).json({ message: "Lifting Lad request accepted successfully" });
+  } catch (error) {
+    console.error("Error accepting Lifting Lad request:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// Get posts from a user's friends
+app.get("/friends-posts/:nickname", async (req, res) => {
+  try {
+    const { nickname } = req.params;
+
+    // Fetch the user's friends
+    const friendsCollection = `${nickname}Friends`;
+    const friends = await db.collection(friendsCollection).find().toArray();
+
+    if (!friends.length) {
+      return res.status(404).json({ message: "No friends found." });
+    }
+
+    const friendPosts = [];
+
+    // Fetch posts from each friend's collection
+    for (const friend of friends) {
+      const friendNickname = friend.requesterName;
+      const friendPostsCollection = `${friendNickname}posts`;
+
+      const posts = await db.collection(friendPostsCollection).find().toArray();
+
+      friendPosts.push(
+        ...posts.map((post) => ({
+          id: post._id.toString(),
+          type: post.postType || "live",
+          content: post.description || "",
+          imageUrl: post.imageUrl || "",
+          tags: post.tags || [],
+          createdAt: post.createdAt,
+          author: friendNickname, // Add friend's name to identify posts
+        }))
+      );
+    }
+
+    // Sort posts by createdAt in descending order (newest first)
+    friendPosts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    res.status(200).json({ posts: friendPosts });
+  } catch (error) {
+    console.error("Error fetching friends' posts:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+// Ignore Lifting Lad Request
+app.post("/ignore-lifting-lad", async (req, res) => {
+  try {
+    const { requesterName, requestedName } = req.body;
+
+    const requestCollection = `${requestedName}liftingLadReqs`;
+
+    // Remove the request from the request collection
+    const deleteResult = await db.collection(requestCollection).deleteOne({ requesterName });
+
+    if (deleteResult.deletedCount === 0) {
+      return res.status(404).json({ error: "Lifting Lad request not found" });
+    }
+
+    res.status(200).json({ message: "Lifting Lad request ignored successfully" });
+  } catch (error) {
+    console.error("Error ignoring Lifting Lad request:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+
+
 // Add a Lifting Lad request
 app.post("/add-lifting-lad", async (req, res) => {
   try {
-    const { requesterName, requestedName, requesterPicture } = req.body;
+    const { requesterName, requestedName, requesterPicture, friendType } = req.body;
 
     const existingRequest = await db.collection(`${requestedName}liftingLadReqs`).findOne({
       requesterName
@@ -154,13 +256,14 @@ app.post("/add-lifting-lad", async (req, res) => {
     if (existingRequest) {
       return res.status(400).json({ error: "Lifting Lad request already exists" });
     }
-
+    console.log(friendType)
     await db.collection(`${requestedName}liftingLadReqs`).insertOne({
       requesterName,
       requestedName,
       requesterPicture,
       status: "pending", // Can be "pending", "accepted", or "declined"
       createdAt: new Date(),
+      friendType
     });
 
     res.status(201).json({ message: "Lifting Lad request sent successfully" });
