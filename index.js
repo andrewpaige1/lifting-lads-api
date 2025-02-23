@@ -127,6 +127,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
       description,
       userInfo: JSON.parse(userInfo),
       createdAt: new Date(),
+      postType: "lift"
     });
 
     console.log("Uploaded to Cloudinary:", cloudinaryResponse.secure_url);
@@ -139,6 +140,43 @@ app.post("/upload", upload.single("image"), async (req, res) => {
     res.status(500).json({ error: "Internal Server Error" });
   }
 });
+
+// Video Upload Route using Cloudinary
+app.post("/upload-video", upload.single("video"), async (req, res) => {
+  const { description, userInfo } = req.body;
+console.log(userInfo)
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No video file uploaded" });
+    }
+
+    // Upload video to Cloudinary
+    const cloudinaryResponse = await cloudinary.uploader.upload(req.file.path, {
+      resource_type: "video",
+      folder: "videos", // Store in a specific Cloudinary folder
+    });
+
+    // Delete the file from local storage
+    fs.unlinkSync(req.file.path);
+    user = JSON.parse(userInfo)
+    console.log("Uploaded video to Cloudinary:", cloudinaryResponse.secure_url);
+    await db.collection(`${user.nickname}posts`).insertOne({
+      imageUrl: cloudinaryResponse.secure_url,
+      description,
+      userInfo: JSON.parse(userInfo),
+      createdAt: new Date(),
+      postType: "pr"
+    });
+    res.status(201).json({
+      message: "Video uploaded successfully",
+      videoUrl: cloudinaryResponse.secure_url,
+    });
+  } catch (error) {
+    console.error("Error uploading video:", error);
+    res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
 
 // Get user data by ID
 app.get("/user/:userId", async (req, res) => {
