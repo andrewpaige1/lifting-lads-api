@@ -145,7 +145,7 @@ app.post("/upload", upload.single("image"), async (req, res) => {
 // Accept Lifting Lad Request
 app.post("/accept-lifting-lad", async (req, res) => {
   try {
-    const { requesterName, requestedName, requesterPicture, friendType } = req.body;
+    const { requesterName, requestedName, requesterPicture, friendType, acceptingPicture } = req.body;
 
     const requestCollection = `${requestedName}liftingLadReqs`;
     const friendsCollection = `${requestedName}Friends`;
@@ -165,6 +165,7 @@ app.post("/accept-lifting-lad", async (req, res) => {
       addedAt: new Date(),
     });
 
+    await db.collection(`${requesterName}Friends`).insertOne({ requestedName, acceptingPicture, friendType, addedAt: new Date() })
     // Remove request from request collection
     await db.collection(requestCollection).deleteOne({ requesterName });
 
