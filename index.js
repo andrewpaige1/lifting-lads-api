@@ -159,13 +159,18 @@ app.post("/accept-lifting-lad", async (req, res) => {
 
     // Move to friends list
     await db.collection(friendsCollection).insertOne({
-      requesterName,
-      requesterPicture,
+      friendName: requesterName,
+      picture: requesterPicture,
       friendType,
       addedAt: new Date(),
     });
 
-    await db.collection(`${requesterName}Friends`).insertOne({ requestedName, acceptingPicture, friendType, addedAt: new Date() })
+    await db.collection(`${requesterName}Friends`).insertOne({ 
+      friendName: requestedName, 
+      picture: acceptingPicture, 
+      friendType, 
+      addedAt: new Date() 
+    })
     // Remove request from request collection
     await db.collection(requestCollection).deleteOne({ requesterName });
 
@@ -193,11 +198,10 @@ app.get("/friends-posts/:nickname", async (req, res) => {
 
     // Fetch posts from each friend's collection
     for (const friend of friends) {
-      const friendNickname = friend.requesterName;
+      const friendNickname = friend.friendName;
       const friendPostsCollection = `${friendNickname}posts`;
 
       const posts = await db.collection(friendPostsCollection).find().toArray();
-
       friendPosts.push(
         ...posts.map((post) => ({
           id: post._id.toString(),
